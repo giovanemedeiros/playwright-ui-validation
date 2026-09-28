@@ -56,7 +56,7 @@ test.describe('Product Validation - Serverest', () => {
     await page.getByTestId('descricao').fill(productDescription);
     await page.getByTestId('quantity').fill('10');
     
-    // Upload the file for product image
+    // Image injected for product image
     await page.getByTestId('imagem').setInputFiles({
       name: 'product-image.png',
       mimeType: 'image/png',
@@ -114,8 +114,55 @@ test.describe('Product Validation - Serverest', () => {
   });
   
   // ---- [US03] [UI Validation] Validar restrição de preço zero ou negativo ----
-  test('Should validate restriction of zero or negative price', async ({ page }) => {
+  test('Should validate restriction of zero or negative price', async ({ page, request }) => {
     
+    // Get incremental number and create user via API
+    const userNumber = getNextUserNumber();
+    const randomUser = `testqap3v${userNumber}`;
+    const randomEmail = `testqap3v${userNumber}@email.com`;
+    
+    // Silent user registration via API (Background)
+    await request.post('https://serverest.dev/usuarios', {
+      data: {
+        nome: randomUser,
+        email: randomEmail,
+        password: 'testqa26',
+        administrador: 'true'
+      }
+    });
+
+    // UI visual test on login page
+    await page.goto('https://front.serverest.dev/login');
+    await page.getByTestId('email').fill(randomEmail);
+    await page.getByTestId('senha').fill('testqa26');
+    await page.getByTestId('entrar').click();
+    
+    // Validate successful login
+    await expect(page).toHaveURL('https://front.serverest.dev/admin/home');
+    await expect(page.getByText(/bem vindo/i)).toBeVisible();
+
+    const productName = `Produto ${userNumber}`;
+    const productDescription = `Teste - Produto ${userNumber}`;
+
+    await page.getByTestId('cadastrar-produtos').click();
+    await page.getByTestId('nome').fill(productName);
+    await page.getByTestId('preco').fill('-1');
+    await page.getByTestId('descricao').fill(productDescription);
+    await page.getByTestId('quantity').fill('10');
+    
+    // Image injected for product image
+    await page.getByTestId('imagem').setInputFiles({
+      name: 'product-image.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64'
+      )
+    });
+    await page.getByTestId('cadastarProdutos').click();
+  
+    // Warning expected
+    await expect(page.getByText('Preco deve ser um número positivo')).toBeVisible();
   });
 
   // ---- [US04] [UI Validation] Validar restrição de quantidade negativa ----
